@@ -1,0 +1,64 @@
+--- routes/coupons.js
++++ routes/coupons.js
+@@ createCoupon request fields
+             coupon_code,
++            max_quantity,
+             vendor_id,
+@@ createCoupon validation
+-        if (!title || !coupon_code) {
++        const parsedMaxQuantity = Number(max_quantity ?? 1);
++        if (!title) {
+             return res.status(400).json({
+                 status: "error",
+-                message: "Title and coupon code are required"
++                message: "Title is required"
+             });
+         }
++        if (!Number.isInteger(parsedMaxQuantity) || parsedMaxQuantity < 1 || parsedMaxQuantity > 5) {
++            return res.status(400).json({
++                status: "error",
++                message: "Maximum quantity must be a whole number from 1 to 5"
++            });
++        }
+@@ Coupon.create payload
+-            coupon_code,
++            coupon_code: coupon_code || null,
++            max_quantity: parsedMaxQuantity,
+             vendor_id: vendor_id || null,
+@@ updateCoupon request fields
+             coupon_code,
++            max_quantity,
+             vendor_id,
+@@ before Coupon.update
++        let parsedMaxQuantity;
++        if (max_quantity !== undefined) {
++            parsedMaxQuantity = Number(max_quantity);
++            if (!Number.isInteger(parsedMaxQuantity) || parsedMaxQuantity < 1 || parsedMaxQuantity > 5) {
++                return res.status(400).json({
++                    status: "error",
++                    message: "Maximum quantity must be a whole number from 1 to 5"
++                });
++            }
++        }
+@@ Coupon.update payload
+             coupon_code,
++            max_quantity: parsedMaxQuantity,
+             vendor_id,
+
+--- models/Coupon.js
++++ models/Coupon.js
+@@ INSERT column list and values
+-    ... coupon_code, vendor_id ...
++    ... coupon_code, max_quantity, vendor_id ...
+-    ... ?, ? ...
++    ... ?, ?, ? ...
+@@ INSERT parameter list
+-    ... data.coupon_code, data.vendor_id ...
++    ... data.coupon_code, data.max_quantity, data.vendor_id ...
+@@ UPDATE field allow-list / SQL SET clause
+ Add `max_quantity` anywhere your model enumerates allowed update fields.
+
+IMPORTANT: The customer cart API must enforce this server-side too. Before an insert/update,
+load the coupon and reject `requestedQuantity > coupon.max_quantity`; do not rely only on
+disabling the + button in the customer UI. The customer UI should use `coupon.max_quantity`
+as the + button limit (default to 1 for older API responses).
