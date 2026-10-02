@@ -114,13 +114,17 @@ const TabBarItem = ({
   icon: any;
   label: string;
   active?: boolean;
-  path: '/' | '/orders' | '/listings' | '/ads' | any;
+  path: '/' | '/orders' | '/revenue' | '/listings' | '/ads' | any;
 }) => {
   const router = useRouter();
 
   return (
     <TouchableOpacity style={styles.tabItem} onPress={() => router.push(path)}>
-      <FontAwesome name={icon} size={21} color={active ? '#208AEF' : '#8A8A8A'} />
+      {icon === 'wallet' || icon === 'wallet-outline' ? (
+        <Ionicons name={active ? 'wallet' : 'wallet-outline'} size={21} color={active ? '#FF6B00' : '#8A8A8A'} />
+      ) : (
+        <FontAwesome name={icon} size={21} color={active ? '#FF6B00' : '#8A8A8A'} />
+      )}
       <Text style={[styles.tabLabel, active && styles.activeTabLabel]}>{label}</Text>
     </TouchableOpacity>
   );
@@ -245,14 +249,14 @@ const Orders = () => {
               service: item.items && item.items[0] ? item.items[0].title : 'Coupon',
               date: new Date(item.created_at).toLocaleDateString(),
               time: new Date(item.created_at).toLocaleTimeString(),
-              customer: 'Customer #' + item.user_id,
+              customer: item.customer_name || ('Customer #' + item.user_id),
               amount: '$' + Number(item.total_amount).toFixed(2),
               items: item.total_items,
               status: item.status,
               payment_status: item.payment_status || 'paid',
               payment_method: item.payment_method || 'Stripe Card',
               transaction_id: item.transaction_id,
-              phone: undefined,
+              phone: item.customer_phone || undefined,
               notes: undefined
             }} 
           />
@@ -270,6 +274,7 @@ const Orders = () => {
       <View style={styles.tabBar}>
         <TabBarItem icon="home" label="Dashboard" path="/" />
         <TabBarItem icon="shopping-bag" label="Orders" path="/orders" active />
+        <TabBarItem icon="wallet" label="Revenue" path="/revenue" />
         <TabBarItem icon="tag" label="Coupons" path="/listings" />
         <TabBarItem icon="bullhorn" label="Ads" path="/ads" />
       </View>
@@ -293,7 +298,13 @@ const Orders = () => {
             {selectedOrderDetails && (
               <ScrollView showsVerticalScrollIndicator={false}>
                 <View style={{ marginBottom: 14 }}>
-                  <Text style={{ fontSize: 13, color: '#6B7280' }}>Customer: <Text style={{ fontWeight: '600', color: '#111827' }}>Customer #{selectedOrderDetails.user_id}</Text></Text>
+                  <Text style={{ fontSize: 13, color: '#6B7280' }}>Customer: <Text style={{ fontWeight: '600', color: '#111827' }}>{selectedOrderDetails.customer_name || ('Customer #' + selectedOrderDetails.user_id)}</Text></Text>
+                  {selectedOrderDetails.customer_email && (
+                    <Text style={{ fontSize: 13, color: '#6B7280', marginTop: 2 }}>Email: <Text style={{ fontWeight: '500', color: '#111827' }}>{selectedOrderDetails.customer_email}</Text></Text>
+                  )}
+                  {selectedOrderDetails.customer_phone && (
+                    <Text style={{ fontSize: 13, color: '#6B7280', marginTop: 2 }}>Phone: <Text style={{ fontWeight: '500', color: '#111827' }}>{selectedOrderDetails.customer_phone}</Text></Text>
+                  )}
                   <Text style={{ fontSize: 13, color: '#6B7280', marginTop: 2 }}>Date: <Text style={{ fontWeight: '500', color: '#111827' }}>{new Date(selectedOrderDetails.created_at).toLocaleString()}</Text></Text>
                 </View>
 

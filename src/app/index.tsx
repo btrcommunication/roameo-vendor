@@ -1,5 +1,5 @@
 // app/index.tsx
-import { Feather, FontAwesome, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Feather, FontAwesome, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -34,10 +34,13 @@ export default function HomeScreen() {
   const [showAllBenefits, setShowAllBenefits] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
+  const [recentOrders, setRecentOrders] = useState<any[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
 
   useEffect(() => {
     console.log('🟢 Dashboard Mounted');
     loadVendorData();
+    fetchRecentOrders();
   }, []);
 
   // Load vendor data from AsyncStorage
@@ -70,6 +73,26 @@ export default function HomeScreen() {
       setVendorName('Vendor');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Fetch recent vendor orders
+  const fetchRecentOrders = async () => {
+    try {
+      setOrdersLoading(true);
+      const token = await AsyncStorage.getItem('vendorToken');
+      if (!token) return;
+      const response = await fetch(`${process.env.EXPO_PUBLIC_BASE_URL}/api/vendor/orders`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      if (data.success && Array.isArray(data.orders)) {
+        setRecentOrders(data.orders.slice(0, 3));
+      }
+    } catch (e) {
+      console.error('❌ Error loading recent orders:', e);
+    } finally {
+      setOrdersLoading(false);
     }
   };
 
@@ -107,11 +130,13 @@ export default function HomeScreen() {
   const getMembershipColor = (tier: string) => {
     switch (tier.toLowerCase()) {
       case 'gold':
-        return '#FFD700';
+        return '#D97706';
       case 'silver':
-        return '#C0C0C0';
+        return '#718096';
+      case 'bronze':
+      case 'free':
       default:
-        return '#4CAF50';
+        return '#C26E25';
     }
   };
 
@@ -119,11 +144,13 @@ export default function HomeScreen() {
   const getMembershipBadge = (tier: string) => {
     switch (tier.toLowerCase()) {
       case 'gold':
-        return '👑 Gold';
+        return '🥇 Gold';
       case 'silver':
-        return '⭐ Silver';
+        return '🥈 Silver';
+      case 'bronze':
+      case 'free':
       default:
-        return '🆓 Free';
+        return '🥉 Bronze';
     }
   };
 
@@ -132,43 +159,38 @@ export default function HomeScreen() {
     switch (tier.toLowerCase()) {
       case 'gold':
         return [
-          'Premium search ranking',
-          'Homepage featured business opportunities',
-          'Two push notification campaigns per month',
-          'Priority customer support',
-          'Advanced analytics dashboard',
-          'Campaign performance reports',
-          'Gold Partner recognition badge',
-          'Early access to new platform features',
-          'Invitations to exclusive ROAMEO promotional campaigns',
-          'Maximum platform visibility',
-          'Commission: 8% on successful ROAMEO-generated sales',
-          'Monthly Membership: R150'
+          'Everything in Silver, plus:',
+          '2 Free Featured Listings on Ads Panel Monthly',
+          '2 Free Push Notifications Monthly',
+          'Premium Placement: Stand out at the top of searches',
+          'Highlighted Profile with badge',
+          'Priority Support: Faster response from our team',
+          'Detailed Reports & Analytics: Track performance & growth',
+          'Automatic Upgrade: Qualify once you reach 21+ customers/mo',
+          'Commission: 8% per sale made through Roameo app',
+          'Monthly Membership: R149'
         ];
       case 'silver':
         return [
-          'Featured placement in search results',
-          'Priority placement within business categories',
-          'Enhanced customer analytics',
-          'Business performance insights',
-          'One complimentary promotional advertisement per month',
-          'Increased promotional opportunities',
-          'Eligibility for featured seasonal campaigns',
-          'Greater visibility to potential customers',
-          'Commission: 5% on successful ROAMEO-generated sales',
-          'Monthly Membership: R150'
+          'Everything in Bronze, plus:',
+          '1 Free Featured Listing on Ads Panel Monthly',
+          '1 Free Push Notification Monthly',
+          'Automatic Upgrade: Receive 11 - 20 customers monthly',
+          'Enhanced growth tools & exposure',
+          'Commission: 5% per sale made through Roameo app',
+          'Monthly Membership: R149'
         ];
+      case 'bronze':
+      case 'free':
       default:
         return [
-          'Basic listing in search results',
-          'Standard customer analytics',
-          'Business profile management',
-          'Coupon creation (up to 5 active)',
-          'Basic booking management',
-          'Email support',
-          'Standard visibility',
-          'Commission: 10% on successful ROAMEO-generated sales',
-          'Free Membership'
+          'Business Listing: Basic business profile on Roameo',
+          'Location on Map: Show your location to thousands of locals',
+          'Special Offers: Add your offers & promotions',
+          'Favourites: Customers can save your business',
+          'Basic Insights: View basic profile views & engagement',
+          'Commission: 0% Platform Fee',
+          'Monthly Membership: R149'
         ];
     }
   };
@@ -179,13 +201,13 @@ export default function HomeScreen() {
     const benefits = getMembershipBenefits(plan);
     
     Alert.alert(
-      `${plan} Membership`,
+      `${plan} Package`,
       `Benefits:\n\n${benefits.join('\n')}`,
       [
         {
           text: 'Subscribe Now',
           onPress: () => {
-            Alert.alert('Success', `You have successfully upgraded to ${plan} Membership!`);
+            Alert.alert('Success', `You have successfully upgraded to ${plan} Package!`);
             setShowUpgradeModal(false);
             setSelectedPlan(null);
           }
@@ -217,29 +239,29 @@ export default function HomeScreen() {
   // Membership plans data
   const membershipPlans = [
     {
-      tier: 'Free',
-      icon: '🆓',
-      color: '#4CAF50',
-      price: 'Free',
-      description: 'Essential features to get started',
-      benefits: getMembershipBenefits('Free'),
-      commission: '10%'
+      tier: 'Bronze',
+      icon: '🥉',
+      color: '#C26E25',
+      price: 'R149/month',
+      description: 'Starter Level • Perfect for new businesses getting discovered',
+      benefits: getMembershipBenefits('Bronze'),
+      commission: '0%'
     },
     {
       tier: 'Silver',
-      icon: '⭐',
-      color: '#C0C0C0',
-      price: 'R150/month',
-      description: 'Enhanced visibility & growth tools',
+      icon: '🥈',
+      color: '#718096',
+      price: 'R149/month',
+      description: 'Growth Level • More exposure & tools to grow customer base',
       benefits: getMembershipBenefits('Silver'),
       commission: '5%'
     },
     {
       tier: 'Gold',
-      icon: '👑',
-      color: '#FFD700',
-      price: 'R150/month',
-      description: 'Maximum exposure & premium features',
+      icon: '🥇',
+      color: '#D97706',
+      price: 'R149/month',
+      description: 'Premium Level • Maximum visibility & features for serious growth',
       benefits: getMembershipBenefits('Gold'),
       commission: '8%'
     }
@@ -487,29 +509,29 @@ export default function HomeScreen() {
               </TouchableOpacity>
             )}
 
-            {/* Upgrade Button for Free/Silver users */}
+            {/* Upgrade Button for Bronze/Silver users */}
             {membershipTier.toLowerCase() !== 'gold' && (
               <TouchableOpacity
                 style={styles.upgradeMembershipButton}
                 onPress={() => setShowUpgradeModal(true)}
               >
                 <Text style={styles.upgradeMembershipText}>
-                  {membershipTier.toLowerCase() === 'free' ? 'Upgrade to Silver or Gold' : 'Upgrade to Gold'}
+                  {membershipTier.toLowerCase() === 'gold' ? 'Gold Plan Active' : (membershipTier.toLowerCase() === 'silver' ? 'Upgrade to Gold' : 'Upgrade to Silver or Gold')}
                 </Text>
                 <Feather name="arrow-right" size={16} color="#FFF" />
               </TouchableOpacity>
             )}
           </View>
 
-          {/* Recent Bookings */}
+          {/* Recent Orders */}
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>
-              Recent Bookings
+              Recent Orders
             </Text>
 
             <TouchableOpacity
               onPress={() =>
-                router.push('/bookings' as any)
+                router.push('/orders' as any)
               }
             >
               <Text style={styles.viewLink}>
@@ -519,89 +541,46 @@ export default function HomeScreen() {
           </View>
 
           <View style={styles.bookingList}>
-            <BookingItem
-              image={DUMMY_BOOKING_1}
-              title="Aroma Relaxation Massage"
-              date="24 May 2025 • 11:00 AM"
-              price="90.00"
-              status="Confirmed"
-              statusColor={Colors.light.green}
-              statusBg={Colors.light.greenBg}
-              onPress={() =>
-                router.push('/bookings' as any)
-              }
-            />
+            {recentOrders.length > 0 ? (
+              recentOrders.map((ord: any) => {
+                const firstItem = ord.items && ord.items[0];
+                const rawImg = firstItem?.thumbnail_url || firstItem?.image_url;
+                const fullImg = rawImg 
+                  ? (rawImg.startsWith('http') ? rawImg : `${process.env.EXPO_PUBLIC_BASE_URL}/${rawImg.replace(/^\/+/, '')}`)
+                  : DUMMY_BOOKING_1;
+                const statusColor = ord.status === 'confirmed' || ord.status === 'completed' 
+                  ? Colors.light.green 
+                  : (ord.status === 'cancelled' ? '#E53935' : Colors.light.orange);
+                const statusBg = ord.status === 'confirmed' || ord.status === 'completed'
+                  ? Colors.light.greenBg
+                  : (ord.status === 'cancelled' ? '#FFEBEE' : Colors.light.orangeBg);
 
-            <BookingItem
-              image={DUMMY_BOOKING_2}
-              title="Signature Facial Therapy"
-              date="23 May 2025 • 02:30 PM"
-              price="75.00"
-              status="Pending"
-              statusColor={Colors.light.orange}
-              statusBg={Colors.light.orangeBg}
-              onPress={() =>
-                router.push('/bookings' as any)
-              }
-            />
-
-            <BookingItem
-              image={DUMMY_BOOKING_3}
-              title="Sunset Yoga Session"
-              date="22 May 2025 • 06:00 AM"
-              price="40.00"
-              status="Confirmed"
-              statusColor={Colors.light.green}
-              statusBg={Colors.light.greenBg}
-              onPress={() =>
-                router.push('/bookings' as any)
-              }
-            />
+                return (
+                  <BookingItem
+                    key={ord.id}
+                    image={fullImg}
+                    title={firstItem ? firstItem.title : `Order #${ord.id}`}
+                    date={new Date(ord.created_at).toLocaleDateString()}
+                    price={Number(ord.total_amount).toFixed(2)}
+                    status={ord.status ? (ord.status.charAt(0).toUpperCase() + ord.status.slice(1)) : 'Placed'}
+                    statusColor={statusColor}
+                    statusBg={statusBg}
+                    onPress={() =>
+                      router.push('/orders' as any)
+                    }
+                  />
+                );
+              })
+            ) : (
+              <View style={{ paddingVertical: 16, alignItems: 'center' }}>
+                <Text style={{ color: Colors.light.textDim, fontSize: 14 }}>
+                  {ordersLoading ? 'Loading recent orders...' : 'No recent orders yet'}
+                </Text>
+              </View>
+            )}
           </View>
 
-          {/* Quick Actions */}
-          <Text
-            style={[
-              styles.sectionTitle,
-              { marginVertical: Spacing.four },
-            ]}
-          >
-            Quick Actions
-          </Text>
 
-          <View style={styles.quickActionGrid}>
-            <QuickActionButton
-              icon="plus-box-outline"
-              label="Add Coupon"
-              onPress={() =>
-                router.push('/listings/new' as any)
-              }
-            />
-
-            <QuickActionButton
-              icon="calendar-clock"
-              label="Manage Bookings"
-              onPress={() =>
-                router.push('/bookings' as any)
-              }
-            />
-
-            <QuickActionButton
-              icon="wallet"
-              label="Earnings"
-              onPress={() =>
-                router.push('/earnings' as any)
-              }
-            />
-
-            <QuickActionButton
-              icon="account-cog-outline"
-              label="Profile"
-              onPress={() =>
-                router.push('/more' as any)
-              }
-            />
-          </View>
         </View>
       </ScrollView>
 
@@ -626,6 +605,12 @@ export default function HomeScreen() {
           icon="shopping-bag"
           label="Orders"
           path="/orders"
+        />
+
+        <TabBarItem
+          icon="wallet"
+          label="Revenue"
+          path="/revenue"
         />
 
         <TabBarItem
@@ -904,15 +889,27 @@ const TabBarItem = ({
       style={styles.tabItem}
       onPress={() => router.push(path as any)}
     >
-      <FontAwesome
-        name={icon}
-        size={22}
-        color={
-          active
-            ? Colors.light.orange
-            : Colors.light.textDim
-        }
-      />
+      {icon === 'wallet' || icon === 'wallet-outline' ? (
+        <Ionicons
+          name={active ? 'wallet' : 'wallet-outline'}
+          size={21}
+          color={
+            active
+              ? Colors.light.orange
+              : Colors.light.textDim
+          }
+        />
+      ) : (
+        <FontAwesome
+          name={icon}
+          size={22}
+          color={
+            active
+              ? Colors.light.orange
+              : Colors.light.textDim
+          }
+        />
+      )}
 
       <Text
         style={[

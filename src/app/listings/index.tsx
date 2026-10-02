@@ -745,6 +745,12 @@ export default function ListingsScreen() {
                 />
 
                 <TabBarItem
+                    icon="wallet"
+                    label="Revenue"
+                    path="/revenue"
+                />
+
+                <TabBarItem
                     icon="tag"
                     label="Coupons"
                     active
@@ -1356,15 +1362,27 @@ const TabBarItem = ({
                 router.push(path as any)
             }
         >
-            <FontAwesome
-                name={icon}
-                size={22}
-                color={
-                    active
-                        ? Colors.light.orange
-                        : Colors.light.textDim
-                }
-            />
+            {icon === 'wallet' || icon === 'wallet-outline' ? (
+                <Ionicons
+                    name={active ? 'wallet' : 'wallet-outline'}
+                    size={21}
+                    color={
+                        active
+                            ? Colors.light.orange
+                            : Colors.light.textDim
+                    }
+                />
+            ) : (
+                <FontAwesome
+                    name={icon}
+                    size={22}
+                    color={
+                        active
+                            ? Colors.light.orange
+                            : Colors.light.textDim
+                    }
+                />
+            )}
 
             <Text
                 style={[
