@@ -10,15 +10,17 @@ import {
   StatusBar,
   ActivityIndicator,
   Image,
+  Platform,
 } from 'react-native';
 import { Feather, FontAwesome, Ionicons } from '@expo/vector-icons';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors, Spacing } from '@/constants/theme';
 
 const ROAMEO_LOGO = require('../../assets/images/roameo-logo.png');
 
-type TimeFilter = 'all' | 'month' | 'week' | 'today';
+type TimeFilter = 'all' | 'month' | 'week' | 'today' | 'custom';
 
 const TabBarItem = ({
   icon,
@@ -55,6 +57,11 @@ export default function RevenueScreen() {
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [membershipTier, setMembershipTier] = useState('Bronze');
+
+  const [customStart, setCustomStart] = useState('');
+  const [customEnd, setCustomEnd] = useState('');
+  const [showStartPicker, setShowStartPicker] = useState(false);
+  const [showEndPicker, setShowEndPicker] = useState(false);
 
   useEffect(() => {
     loadVendorData();
@@ -134,6 +141,19 @@ export default function RevenueScreen() {
           orderDate.getMonth() === now.getMonth() &&
           orderDate.getFullYear() === now.getFullYear()
         );
+      } else if (filter === 'custom') {
+        let valid = true;
+        if (customStart) {
+          const start = new Date(customStart);
+          start.setHours(0, 0, 0, 0);
+          if (orderDate < start) valid = false;
+        }
+        if (customEnd) {
+          const end = new Date(customEnd);
+          end.setHours(23, 59, 59, 999);
+          if (orderDate > end) valid = false;
+        }
+        return valid;
       }
       return true;
     });
@@ -193,11 +213,7 @@ export default function RevenueScreen() {
         </View>
       </View>
 
-      <ScrollView
-        style={styles.content}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 100 }}
-      >
+      <View style={{ paddingHorizontal: 16, paddingTop: 16, backgroundColor: '#F8FAFC', zIndex: 10 }}>
         {/* Title Header */}
         <View style={styles.pageHeader}>
           <View>
@@ -211,12 +227,13 @@ export default function RevenueScreen() {
 
         {/* Time Filters */}
         <View style={styles.filterRow}>
-          {(['all', 'month', 'week', 'today'] as TimeFilter[]).map((f) => {
+          {(['all', 'month', 'week', 'today', 'custom'] as TimeFilter[]).map((f) => {
             const labelMap: Record<TimeFilter, string> = {
               all: 'All Time',
               month: 'This Month',
               week: 'This Week',
               today: 'Today',
+              custom: 'Custom',
             };
             const active = timeFilter === f;
             return (
@@ -233,6 +250,83 @@ export default function RevenueScreen() {
           })}
         </View>
 
+        {/* Custom Date Range Pickers */}
+        {timeFilter === 'custom' && (
+          <View style={{ flexDirection: 'row', gap: 10, marginBottom: 16 }}>
+            {Platform.OS === 'web' ? (
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 11, color: '#64748B', marginBottom: 4 }}>Start Date</Text>
+                <input
+                  type="date"
+                  style={{ width: '100%', padding: '8px', fontSize: '13px', border: '1px solid #E2E8F0', borderRadius: '8px', outline: 'none' }}
+                  value={customStart}
+                  onChange={(e) => setCustomStart(e.target.value)}
+                />
+              </View>
+            ) : (
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 11, color: '#64748B', marginBottom: 4 }}>Start Date</Text>
+                <TouchableOpacity style={styles.dateBtn} onPress={() => setShowStartPicker(true)}>
+                  <Ionicons name="calendar-outline" size={16} color="#64748B" />
+                  <Text style={{ fontSize: 13, color: customStart ? '#1E293B' : '#94A3B8', marginLeft: 6 }}>
+                    {customStart || 'Select'}
+                  </Text>
+                </TouchableOpacity>
+                {showStartPicker && (
+                  <DateTimePicker
+                    value={customStart ? new Date(customStart) : new Date()}
+                    mode="date"
+                    display="default"
+                    onChange={(event, date) => {
+                      setShowStartPicker(Platform.OS === 'ios');
+                      if (date) setCustomStart(date.toISOString().split('T')[0]);
+                    }}
+                  />
+                )}
+              </View>
+            )}
+
+            {Platform.OS === 'web' ? (
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 11, color: '#64748B', marginBottom: 4 }}>End Date</Text>
+                <input
+                  type="date"
+                  style={{ width: '100%', padding: '8px', fontSize: '13px', border: '1px solid #E2E8F0', borderRadius: '8px', outline: 'none' }}
+                  value={customEnd}
+                  onChange={(e) => setCustomEnd(e.target.value)}
+                />
+              </View>
+            ) : (
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 11, color: '#64748B', marginBottom: 4 }}>End Date</Text>
+                <TouchableOpacity style={styles.dateBtn} onPress={() => setShowEndPicker(true)}>
+                  <Ionicons name="calendar-outline" size={16} color="#64748B" />
+                  <Text style={{ fontSize: 13, color: customEnd ? '#1E293B' : '#94A3B8', marginLeft: 6 }}>
+                    {customEnd || 'Select'}
+                  </Text>
+                </TouchableOpacity>
+                {showEndPicker && (
+                  <DateTimePicker
+                    value={customEnd ? new Date(customEnd) : new Date()}
+                    mode="date"
+                    display="default"
+                    onChange={(event, date) => {
+                      setShowEndPicker(Platform.OS === 'ios');
+                      if (date) setCustomEnd(date.toISOString().split('T')[0]);
+                    }}
+                  />
+                )}
+              </View>
+            )}
+          </View>
+        )}
+      </View>
+
+      <ScrollView
+        style={styles.content}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 100 }}
+      >
         {/* Revenue Metric Cards */}
         <View style={styles.metricsGrid}>
           {/* Gross Revenue */}
@@ -456,7 +550,15 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 16,
-    paddingTop: 16,
+  },
+  dateBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 8,
+    padding: 8,
   },
   pageHeader: {
     flexDirection: 'row',
