@@ -1,7 +1,9 @@
 import { Feather, FontAwesome } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
+    ActivityIndicator,
     Image,
     ScrollView,
     StyleSheet,
@@ -18,6 +20,7 @@ import { Colors, Radius, Spacing } from '@/constants/theme';
 import { formatPrice, parsePrice } from '@/utils/couponPricing';
 
 const ROAMEO_LOGO = require('../../../assets/images/roameo-logo.png');
+const API_URL = `${process.env.EXPO_PUBLIC_BASE_URL}/api`;
 
 export default function ListingDetailsScreen() {
     const router = useRouter();
@@ -28,16 +31,11 @@ export default function ListingDetailsScreen() {
         listing?: string;
     }>();
 
-    /*
-     * IMPORTANT:
-     *
-     * We DO NOT call any API here.
-     *
-     * The listing object was already fetched
-     * from listings/index.tsx.
-     */
+    const [couponData, setCouponData] = useState<any>(null);
+    const [loading, setLoading] = useState(false);
+    const [fetchError, setFetchError] = useState<string | null>(null);
 
-    const listing = useMemo(() => {
+    const initialListing = useMemo(() => {
         try {
             if (!params.listing) {
                 return null;
@@ -53,6 +51,50 @@ export default function ListingDetailsScreen() {
             return null;
         }
     }, [params.listing]);
+
+    useEffect(() => {
+        if (initialListing) {
+            setCouponData(initialListing);
+            return;
+        }
+
+        const couponId = params.id;
+        if (!couponId) return;
+
+        let cancelled = false;
+        const fetchDetails = async () => {
+            setLoading(true);
+            setFetchError(null);
+            try {
+                const token = await AsyncStorage.getItem('vendorToken');
+                const response = await fetch(`${API_URL}/coupons/${couponId}`, {
+                    headers: token ? { Authorization: `Bearer ${token}` } : {},
+                });
+                const result = await response.json();
+                if (!response.ok || !result.data) {
+                    throw new Error(result.message || 'Failed to fetch coupon details');
+                }
+                if (!cancelled) {
+                    setCouponData(result.data);
+                }
+            } catch (err: any) {
+                if (!cancelled) {
+                    setFetchError(err.message || 'Unable to load coupon');
+                }
+            } finally {
+                if (!cancelled) {
+                    setLoading(false);
+                }
+            }
+        };
+
+        fetchDetails();
+        return () => {
+            cancelled = true;
+        };
+    }, [params.id, initialListing]);
+
+    const listing = couponData || initialListing;
 
     const formatDate = (
         dateString?: string
@@ -77,10 +119,25 @@ export default function ListingDetailsScreen() {
         );
     };
 
-    /*
-     * If no listing was passed,
-     * show an error instead of calling API.
-     */
+    if (loading) {
+        return (
+            <View style={styles.errorScreen}>
+                <ActivityIndicator
+                    size="large"
+                    color={Colors.light.orange}
+                />
+
+                <Text
+                    style={[
+                        styles.errorTitle,
+                        { marginTop: Spacing.three },
+                    ]}
+                >
+                    Loading Coupon...
+                </Text>
+            </View>
+        );
+    }
 
     if (!listing) {
         return (
@@ -92,7 +149,7 @@ export default function ListingDetailsScreen() {
                 />
 
                 <Text style={styles.errorTitle}>
-                    Coupon Data Not Found
+                    {fetchError || 'Coupon Data Not Found'}
                 </Text>
 
                 <Text
@@ -130,11 +187,14 @@ export default function ListingDetailsScreen() {
         listing.image ||
         listing.images?.[0]?.url ||
         listing.images?.[0];
-    const imageUrl = rawImageUrl
-        ? rawImageUrl.startsWith('http')
-            ? rawImageUrl
-            : `${process.env.EXPO_PUBLIC_BASE_URL}${rawImageUrl.startsWith('/') ? '' : '/'}${rawImageUrl}`
-        : 'https://via.placeholder.com/600x400';
+    const normalizedRawUrl = typeof rawImageUrl === 'string' && process.env.EXPO_PUBLIC_BASE_URL
+        ? rawImageUrl.replace(/^https?:\/\/roameomobileapp\.braventra\.in/i, process.env.EXPO_PUBLIC_BASE_URL)
+        : rawImageUrl;
+    const imageUrl = normalizedRawUrl
+        ? normalizedRawUrl.startsWith('http')
+            ? normalizedRawUrl
+            : `${process.env.EXPO_PUBLIC_BASE_URL}${normalizedRawUrl.startsWith('/') ? '' : '/'}${normalizedRawUrl}`
+        : 'https://placehold.co/600x400/f0f0f0/999999?text=No+Image';
 
     const categoryName =
         listing.category?.name ||
@@ -671,12 +731,9 @@ export default function ListingDetailsScreen() {
                             activeOpacity={0.8}
                             onPress={() =>
                                 router.push({
-                                    pathname: `/listings/${listing.id}/edit`,
+                                    pathname: '/listings/edit',
                                     params: {
-                                        listing:
-                                            JSON.stringify(
-                                                listing
-                                            ),
+                                        id: String(listing.id),
                                     },
                                 } as any)
                             }

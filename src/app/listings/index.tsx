@@ -6,6 +6,7 @@ import {
     ActivityIndicator,
     Alert,
     Image,
+    Modal,
     RefreshControl,
     ScrollView,
     StyleSheet,
@@ -41,6 +42,54 @@ export default function ListingsScreen() {
         approved: 0,
         pending: 0,
     });
+
+    const [selectedFilter, setSelectedFilter] = useState<
+        'all' | 'active' | 'inactive' | 'approved' | 'pending'
+    >('all');
+    const [filterModalVisible, setFilterModalVisible] = useState(false);
+
+    const applyFilter = (
+        filterType: 'all' | 'active' | 'inactive' | 'approved' | 'pending',
+        list = coupons,
+        query = searchQuery
+    ) => {
+        let result = [...list];
+
+        if (filterType === 'active') {
+            result = result.filter((item: any) => item?.is_active === 1);
+        } else if (filterType === 'inactive') {
+            result = result.filter((item: any) => item?.is_active === 0);
+        } else if (filterType === 'approved') {
+            result = result.filter((item: any) => item?.is_approved === 1);
+        } else if (filterType === 'pending') {
+            result = result.filter((item: any) => item?.is_approved === 0);
+        }
+
+        if (query && query.trim()) {
+            const searchText = query.toLowerCase();
+            result = result.filter((item: any) => {
+                const title = item?.title?.toLowerCase?.() || '';
+                const vendor = item?.vendor_name?.toLowerCase?.() || '';
+                const subtitle = item?.subtitle?.toLowerCase?.() || '';
+
+                return (
+                    title.includes(searchText) ||
+                    vendor.includes(searchText) ||
+                    subtitle.includes(searchText)
+                );
+            });
+        }
+
+        setFilteredCoupons(result);
+    };
+
+    const handleSelectFilter = (
+        filterType: 'all' | 'active' | 'inactive' | 'approved' | 'pending'
+    ) => {
+        setSelectedFilter(filterType);
+        applyFilter(filterType, coupons, searchQuery);
+        setFilterModalVisible(false);
+    };
 
     const getVendorSession = async () => {
         try {
@@ -116,26 +165,7 @@ export default function ListingsScreen() {
             const couponsData = data?.data || [];
 
             setCoupons(couponsData);
-
-            if (search) {
-                const searchText = search.toLowerCase();
-
-                const filtered = couponsData.filter((item: any) => {
-                    const title = item?.title?.toLowerCase?.() || '';
-                    const vendor = item?.vendor_name?.toLowerCase?.() || '';
-                    const subtitle = item?.subtitle?.toLowerCase?.() || '';
-
-                    return (
-                        title.includes(searchText) ||
-                        vendor.includes(searchText) ||
-                        subtitle.includes(searchText)
-                    );
-                });
-
-                setFilteredCoupons(filtered);
-            } else {
-                setFilteredCoupons(couponsData);
-            }
+            applyFilter(selectedFilter, couponsData, search);
 
             const activeCoupons = couponsData.filter(
                 (item: any) => item?.is_active === 1
@@ -181,6 +211,7 @@ export default function ListingsScreen() {
 
     const handleSearch = (text: string) => {
         setSearchQuery(text);
+        applyFilter(selectedFilter, coupons, text);
         fetchCoupons(text);
     };
 
@@ -349,60 +380,40 @@ export default function ListingsScreen() {
                         </View>
 
                         <TouchableOpacity
-                            style={styles.filterButton}
+                            style={[
+                                styles.filterButton,
+                                selectedFilter !== 'all' &&
+                                    styles.filterButtonActive,
+                            ]}
                             activeOpacity={0.7}
-                            onPress={() => {
-                                Alert.alert(
-                                    'Filter Coupons',
-                                    'Select filter option',
-                                    [
-                                        {
-                                            text: 'Show Active Only',
-                                            onPress: () => {
-                                                const filtered = coupons.filter(
-                                                    (item: any) => item.is_active === 1
-                                                );
-                                                setFilteredCoupons(filtered);
-                                            }
-                                        },
-                                        {
-                                            text: 'Show Approved Only',
-                                            onPress: () => {
-                                                const filtered = coupons.filter(
-                                                    (item: any) => item.is_approved === 1
-                                                );
-                                                setFilteredCoupons(filtered);
-                                            }
-                                        },
-                                        {
-                                            text: 'Show Pending Approval',
-                                            onPress: () => {
-                                                const filtered = coupons.filter(
-                                                    (item: any) => item.is_approved === 0
-                                                );
-                                                setFilteredCoupons(filtered);
-                                            }
-                                        },
-                                        {
-                                            text: 'Reset Filters',
-                                            onPress: () => {
-                                                setFilteredCoupons(coupons);
-                                                setSearchQuery('');
-                                            }
-                                        },
-                                        { text: 'Cancel', style: 'cancel' },
-                                    ]
-                                );
-                            }}
+                            onPress={() => setFilterModalVisible(true)}
                         >
                             <Ionicons
                                 name="options-outline"
                                 size={18}
-                                color={Colors.light.text}
+                                color={
+                                    selectedFilter !== 'all'
+                                        ? Colors.light.orange
+                                        : Colors.light.text
+                                }
                             />
 
-                            <Text style={styles.filterText}>
-                                Filter
+                            <Text
+                                style={[
+                                    styles.filterText,
+                                    selectedFilter !== 'all' &&
+                                        styles.filterTextActive,
+                                ]}
+                            >
+                                {selectedFilter === 'all'
+                                    ? 'Filter'
+                                    : selectedFilter === 'active'
+                                        ? 'Active'
+                                        : selectedFilter === 'inactive'
+                                            ? 'Inactive'
+                                            : selectedFilter === 'approved'
+                                                ? 'Approved'
+                                                : 'Pending'}
                             </Text>
                         </TouchableOpacity>
                     </View>
@@ -416,11 +427,15 @@ export default function ListingsScreen() {
                     >
                         <View style={styles.statsRow}>
                             <TouchableOpacity
-                                style={styles.statCard}
+                                style={[
+                                    styles.statCard,
+                                    selectedFilter === 'all' &&
+                                        styles.statCardActive,
+                                ]}
                                 activeOpacity={0.75}
                                 accessibilityRole="button"
                                 accessibilityLabel="Show all coupons"
-                                onPress={() => setFilteredCoupons(coupons)}
+                                onPress={() => handleSelectFilter('all')}
                             >
                                 <View
                                     style={[
@@ -454,11 +469,15 @@ export default function ListingsScreen() {
                             </TouchableOpacity>
 
                             <TouchableOpacity
-                                style={styles.statCard}
+                                style={[
+                                    styles.statCard,
+                                    selectedFilter === 'active' &&
+                                        styles.statCardActive,
+                                ]}
                                 activeOpacity={0.75}
                                 accessibilityRole="button"
                                 accessibilityLabel="Show active coupons"
-                                onPress={() => setFilteredCoupons(coupons.filter((item: any) => item?.is_active === 1))}
+                                onPress={() => handleSelectFilter('active')}
                             >
                                 <View
                                     style={[
@@ -507,11 +526,15 @@ export default function ListingsScreen() {
                             </TouchableOpacity>
 
                             <TouchableOpacity
-                                style={styles.statCard}
+                                style={[
+                                    styles.statCard,
+                                    selectedFilter === 'inactive' &&
+                                        styles.statCardActive,
+                                ]}
                                 activeOpacity={0.75}
                                 accessibilityRole="button"
                                 accessibilityLabel="Show inactive coupons"
-                                onPress={() => setFilteredCoupons(coupons.filter((item: any) => item?.is_active === 0))}
+                                onPress={() => handleSelectFilter('inactive')}
                             >
                                 <View
                                     style={[
@@ -557,11 +580,15 @@ export default function ListingsScreen() {
                             </TouchableOpacity>
 
                             <TouchableOpacity
-                                style={styles.statCard}
+                                style={[
+                                    styles.statCard,
+                                    selectedFilter === 'pending' &&
+                                        styles.statCardActive,
+                                ]}
                                 activeOpacity={0.75}
                                 accessibilityRole="button"
                                 accessibilityLabel="Show pending coupons"
-                                onPress={() => setFilteredCoupons(coupons.filter((item: any) => item?.is_approved === 0))}
+                                onPress={() => handleSelectFilter('pending')}
                             >
                                 <View
                                     style={[
@@ -675,7 +702,7 @@ export default function ListingsScreen() {
                                         styles.promoIconContainer
                                     }
                                 >
-                                    <FontAwesome
+                                    <Feather
                                         name="award"
                                         size={18}
                                         color={
@@ -764,6 +791,176 @@ export default function ListingsScreen() {
                 />
 
             </View>
+
+            {/* FILTER MODAL */}
+            <Modal
+                visible={filterModalVisible}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setFilterModalVisible(false)}
+            >
+                <TouchableOpacity
+                    style={styles.filterModalOverlay}
+                    activeOpacity={1}
+                    onPress={() => setFilterModalVisible(false)}
+                >
+                    <TouchableOpacity
+                        style={styles.filterModalContent}
+                        activeOpacity={1}
+                        onPress={(e) => e.stopPropagation()}
+                    >
+                        <View style={styles.filterModalHeader}>
+                            <View
+                                style={{
+                                    flexDirection: 'row',
+                                    alignItems: 'center',
+                                    gap: Spacing.two,
+                                }}
+                            >
+                                <Ionicons
+                                    name="options-outline"
+                                    size={20}
+                                    color={Colors.light.orange}
+                                />
+                                <Text style={styles.filterModalTitle}>
+                                    Filter Coupons
+                                </Text>
+                            </View>
+                            <TouchableOpacity
+                                onPress={() => setFilterModalVisible(false)}
+                                style={styles.filterModalClose}
+                            >
+                                <Feather
+                                    name="x"
+                                    size={20}
+                                    color={Colors.light.textDim}
+                                />
+                            </TouchableOpacity>
+                        </View>
+
+                        <View style={styles.filterOptionsList}>
+                            {(
+                                [
+                                    {
+                                        key: 'all',
+                                        label: 'All Coupons',
+                                        count: stats.total,
+                                        icon: 'box',
+                                        color: Colors.light.orange,
+                                    },
+                                    {
+                                        key: 'active',
+                                        label: 'Active Only',
+                                        count: stats.active,
+                                        icon: 'check-circle',
+                                        color: Colors.light.green,
+                                    },
+                                    {
+                                        key: 'inactive',
+                                        label: 'Inactive Only',
+                                        count: stats.inactive,
+                                        icon: 'x-circle',
+                                        color: '#E53935',
+                                    },
+                                    {
+                                        key: 'approved',
+                                        label: 'Approved Only',
+                                        count: stats.approved,
+                                        icon: 'shield',
+                                        color: Colors.light.green,
+                                    },
+                                    {
+                                        key: 'pending',
+                                        label: 'Pending Approval',
+                                        count: stats.pending,
+                                        icon: 'clock',
+                                        color: '#FFA000',
+                                    },
+                                ] as const
+                            ).map((opt) => {
+                                const isSelected = selectedFilter === opt.key;
+                                return (
+                                    <TouchableOpacity
+                                        key={opt.key}
+                                        style={[
+                                            styles.filterOptionItem,
+                                            isSelected &&
+                                                styles.filterOptionItemSelected,
+                                        ]}
+                                        activeOpacity={0.7}
+                                        onPress={() =>
+                                            handleSelectFilter(opt.key)
+                                        }
+                                    >
+                                        <View
+                                            style={{
+                                                flexDirection: 'row',
+                                                alignItems: 'center',
+                                                gap: Spacing.two,
+                                            }}
+                                        >
+                                            <Feather
+                                                name={opt.icon as any}
+                                                size={16}
+                                                color={opt.color}
+                                            />
+                                            <Text
+                                                style={[
+                                                    styles.filterOptionLabel,
+                                                    isSelected &&
+                                                        styles.filterOptionLabelSelected,
+                                                ]}
+                                            >
+                                                {opt.label}
+                                            </Text>
+                                        </View>
+
+                                        <View
+                                            style={{
+                                                flexDirection: 'row',
+                                                alignItems: 'center',
+                                                gap: Spacing.two,
+                                            }}
+                                        >
+                                            <Text
+                                                style={styles.filterOptionCount}
+                                            >
+                                                ({opt.count})
+                                            </Text>
+                                            {isSelected ? (
+                                                <Feather
+                                                    name="check"
+                                                    size={18}
+                                                    color={Colors.light.orange}
+                                                />
+                                            ) : (
+                                                <View style={{ width: 18 }} />
+                                            )}
+                                        </View>
+                                    </TouchableOpacity>
+                                );
+                            })}
+                        </View>
+
+                        {selectedFilter !== 'all' && (
+                            <TouchableOpacity
+                                style={styles.filterResetButton}
+                                activeOpacity={0.8}
+                                onPress={() => handleSelectFilter('all')}
+                            >
+                                <Feather
+                                    name="rotate-ccw"
+                                    size={14}
+                                    color={Colors.light.orange}
+                                />
+                                <Text style={styles.filterResetText}>
+                                    Reset Filter
+                                </Text>
+                            </TouchableOpacity>
+                        )}
+                    </TouchableOpacity>
+                </TouchableOpacity>
+            </Modal>
         </View>
     );
 }
@@ -812,12 +1009,15 @@ const CouponCard = ({
         item?.vendor_name ||
         'Unknown Vendor';
 
-    const bannerImage = item?.banner_image_url || item?.banner_image;
+    const rawBanner = item?.banner_image_url || item?.banner_image;
+    const bannerImage = typeof rawBanner === 'string' && API_ORIGIN
+        ? rawBanner.replace(/^https?:\/\/roameomobileapp\.braventra\.in/i, API_ORIGIN)
+        : rawBanner;
     const imageUrl = bannerImage
         ? bannerImage.startsWith('http')
             ? bannerImage
             : `${API_ORIGIN}${bannerImage.startsWith('/') ? '' : '/'}${bannerImage}`
-        : 'https://via.placeholder.com/150';
+        : 'https://placehold.co/150x150/f0f0f0/999999?text=No+Image';
 
     /*
      * Pass the COMPLETE coupon object to details page
@@ -826,12 +1026,7 @@ const CouponCard = ({
     const openDetails = () => {
         setShowOptions(false);
 
-        router.push({
-            pathname: `/listings/${item.id}`,
-            params: {
-                listing: JSON.stringify(item),
-            },
-        } as any);
+        router.push(`/listings/${item.id}` as any);
     };
 
     const handleDelete = () => {
@@ -1926,5 +2121,114 @@ const styles = StyleSheet.create({
     tabLabelActive: {
         color: Colors.light.orange,
         fontWeight: '600',
+    },
+
+    filterButtonActive: {
+        borderColor: Colors.light.orange,
+        backgroundColor: '#FFF0EA',
+    },
+
+    filterTextActive: {
+        color: Colors.light.orange,
+        fontWeight: '700',
+    },
+
+    statCardActive: {
+        borderWidth: 1.5,
+        borderColor: Colors.light.orange,
+    },
+
+    filterModalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.45)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: Spacing.four,
+    },
+
+    filterModalContent: {
+        width: '100%',
+        maxWidth: 360,
+        backgroundColor: Colors.light.white,
+        borderRadius: Radius.large,
+        padding: Spacing.four,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 12,
+        elevation: 8,
+    },
+
+    filterModalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingBottom: Spacing.three,
+        borderBottomWidth: 1,
+        borderBottomColor: '#F0F0F0',
+        marginBottom: Spacing.two,
+    },
+
+    filterModalTitle: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: Colors.light.text,
+    },
+
+    filterModalClose: {
+        padding: 4,
+    },
+
+    filterOptionsList: {
+        paddingVertical: Spacing.one,
+    },
+
+    filterOptionItem: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingVertical: 12,
+        paddingHorizontal: Spacing.two,
+        borderRadius: Radius.medium,
+        marginVertical: 2,
+    },
+
+    filterOptionItemSelected: {
+        backgroundColor: '#FFF5F0',
+    },
+
+    filterOptionLabel: {
+        fontSize: 14,
+        fontWeight: '500',
+        color: Colors.light.text,
+    },
+
+    filterOptionLabelSelected: {
+        color: Colors.light.orange,
+        fontWeight: '700',
+    },
+
+    filterOptionCount: {
+        fontSize: 12,
+        color: Colors.light.textDim,
+        fontWeight: '600',
+        marginRight: 4,
+    },
+
+    filterResetButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 6,
+        marginTop: Spacing.three,
+        paddingVertical: 10,
+        borderTopWidth: 1,
+        borderTopColor: '#F0F0F0',
+    },
+
+    filterResetText: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: Colors.light.orange,
     },
 });

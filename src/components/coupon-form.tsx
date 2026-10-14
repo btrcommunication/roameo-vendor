@@ -147,8 +147,11 @@ export default function CouponForm({ couponId }: { couponId?: string }) {
                 setValidFrom(savedFrom);
                 setValidUntil(savedUntil);
                 const banner = coupon.banner_image_url || coupon.banner_image;
-                setImageUri(banner
-                    ? /^https?:\/\//i.test(banner) ? banner : `${API_URL.replace(/\/api$/, '')}/${String(banner).replace(/^\/+/, '')}`
+                const normalizedBanner = typeof banner === 'string'
+                    ? banner.replace(/^https?:\/\/roameomobileapp\.braventra\.in/i, API_URL.replace(/\/api$/, ''))
+                    : banner;
+                setImageUri(normalizedBanner
+                    ? /^https?:\/\//i.test(normalizedBanner) ? normalizedBanner : `${API_URL.replace(/\/api$/, '')}/${String(normalizedBanner).replace(/^\/+/, '')}`
                     : null);
                 setImageChanged(false);
                 setOriginalFields(fields);
@@ -433,13 +436,18 @@ export default function CouponForm({ couponId }: { couponId?: string }) {
             // Append image if selected
             if (imageUri && imageChanged) {
                 console.log('Image URI:', imageUri);
-                const filename = imageUri.split('/').pop() || 'coupon-image.jpg';
-                const match = /\.(\w+)$/.exec(filename);
-                const type = match ? `image/${match[1]}` : 'image/jpeg';
+                let filename = imageUri.split('/').pop() || 'coupon-image.jpg';
+                let match = /\.(\w+)$/.exec(filename);
+                let type = match ? `image/${match[1]}` : 'image/jpeg';
 
                 if (Platform.OS === 'web') {
                     const imageResponse = await fetch(imageUri);
                     const imageBlob = await imageResponse.blob();
+                    if (!match && imageBlob.type) {
+                        const ext = imageBlob.type.split('/')[1] || 'jpg';
+                        filename = `${filename}.${ext}`;
+                        type = imageBlob.type;
+                    }
                     formData.append('banner_image', imageBlob, filename);
                 } else {
                     formData.append('banner_image', {
